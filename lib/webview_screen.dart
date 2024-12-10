@@ -1,10 +1,69 @@
+import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'dart:convert';
-import 'package:permission_handler/permission_handler.dart'
-    hide PermissionStatus;
-import 'package:location/location.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+class DojahKYC {
+  final String appId;
+  final String publicKey;
+  final String type;
+  final int? amount;
+  final String? referenceId;
+  final Map<String, dynamic>? userData;
+  final Map<String, dynamic>? metaData;
+  final Map<String, dynamic>? govData;
+  final Map<String, dynamic>? govId;
+  final Map<String, dynamic>? config;
+  final Function(dynamic)? onCloseCallback;
+
+  DojahKYC({
+    required this.appId,
+    required this.publicKey,
+    required this.type,
+    this.userData,
+    this.config,
+    this.metaData,
+    this.govData,
+    this.govId,
+    this.amount,
+    this.referenceId,
+    this.onCloseCallback,
+  });
+
+  Future<void> open(BuildContext context,
+      {Function(dynamic result)? onSuccess,
+      Function(dynamic close)? onClose,
+      Function(dynamic error)? onError}) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WebviewScreen(
+          appId: appId,
+          publicKey: publicKey,
+          type: type,
+          userData: userData,
+          metaData: metaData,
+          govData: govData,
+          govId: govId,
+          config: config,
+          amount: amount,
+          referenceId: referenceId,
+          success: (result) {
+            onSuccess!(result);
+          },
+          close: (close) {
+            onClose!(close);
+          },
+          error: (error) {
+            onError!(error);
+          },
+        ),
+      ),
+    );
+  }
+}
 
 class WebviewScreen extends StatefulWidget {
   final String appId;
@@ -14,6 +73,8 @@ class WebviewScreen extends StatefulWidget {
   final String? referenceId;
   final Map<String, dynamic>? userData;
   final Map<String, dynamic>? metaData;
+  final Map<String, dynamic>? govData;
+  final Map<String, dynamic>? govId;
   final Map<String, dynamic>? config;
   final Function(dynamic) success;
   final Function(dynamic) error;
@@ -25,6 +86,8 @@ class WebviewScreen extends StatefulWidget {
     required this.type,
     this.userData,
     this.metaData,
+    this.govData,
+    this.govId,
     this.config,
     this.amount,
     this.referenceId,
@@ -38,125 +101,77 @@ class WebviewScreen extends StatefulWidget {
 }
 
 class _WebviewScreenState extends State<WebviewScreen> {
-  InAppWebViewController? _webViewController;
+  final GlobalKey webViewKey = GlobalKey();
+  late InAppWebViewController _webViewController;
+  double progress = 0;
+  String url = '';
+  late PullToRefreshController pullToRefreshController;
 
-  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
-    crossPlatform: InAppWebViewOptions(
-        clearCache: true,
-        useShouldOverrideUrlLoading: true,
-        mediaPlaybackRequiresUserGesture: false),
-    android: AndroidInAppWebViewOptions(
-      useHybridComposition: true,
-    ),
-    ios: IOSInAppWebViewOptions(
-      allowsInlineMediaPlayback: true,
-    ),
+  InAppWebViewSettings options = InAppWebViewSettings(
+    allowsInlineMediaPlayback: true,
+    cacheEnabled: false, // Disable cache
+    clearCache: true, // Clear cache
   );
 
   bool isGranted = false;
   bool isLocationGranted = false;
+
+  bool isLocationPermissionGranted = false;
   dynamic locationData;
   dynamic timeZone;
   dynamic zoneOffset;
   dynamic locationObject;
 
-  get blue => null;
-
   @override
   void initState() {
     super.initState();
+    getPermissions();
+    pullToRefreshController = PullToRefreshController(
+      //settings: PullToRefreshSettings(color: Colors.blue),
+      onRefresh: () async {
+        if (Platform.isAndroid) {
+          _webViewController.reload();
+        } else if (Platform.isIOS) {
+          _webViewController.loadUrl(
+            urlRequest: URLRequest(url: await _webViewController.getUrl()),
+          );
+        }
+      },
+    );
+  }
 
-    initPermissions();
-
+  Future getPermissions() async {
+    await initPermissions();
   }
 
   Future initPermissions() async {
-   
+    await Permission.camera.request().then((value) {
+      if (value.isPermanentlyDenied) {
+        openAppSettings();
+      }
+    });
     if (await Permission.camera.request().isGranted) {
       setState(() {
         isGranted = true;
       });
+    } else {
+      Permission.camera.onDeniedCallback(() {
+        Permission.camera.request();
+      });
     }
   }
-
-  // Future initLocationPermissions() async {
-  //   bool _serviceEnabled;
-
-  //   Location location = Location();
-
-  //   LocationData _locationData;
-
-  //   PermissionStatus _permissionGranted;
-
-  //   _serviceEnabled = await location.serviceEnabled();
-  //   if (!_serviceEnabled) {
-  //     _serviceEnabled = await location.requestService();
-  //     if (!_serviceEnabled) {
-  //       return;
-  //     }
-  //   }
-
-  //   _permissionGranted = await location.hasPermission();
-  //   if (_permissionGranted == PermissionStatus.denied) {
-  //     _permissionGranted = await location.requestPermission();
-  //     if (_permissionGranted != PermissionStatus.granted) {
-  //       return;
-  //     }
-  //   }
-
-  //   _locationData = await location.getLocation();
-
-  //   final latitude = _locationData.latitude;
-
-  //   final longitude = _locationData.longitude;
-
-  //   DateTime dateTime = DateTime.now();
-
-  //   final timeZoneName = dateTime.timeZoneName;
-  //   final timeZoneOffset = dateTime.timeZoneOffset;
-
-  //   final _locationObject = {
-  //     "lat": latitude,
-  //     "long": longitude,
-  //     "timezone": timeZoneName,
-  //     //"timezoneOffset" : timeZoneOffset,
-  //   };
-
-  //   // print("After Location data");
-  //   // print(dateTime.timeZoneName);
-
-  //   // print(latitude);
-  //   // print(longitude);
-  //   // print(dateTime.timeZoneOffset);
-
-  //   //  print(_locationData);
-
-  //   // print(json.encode(locationObject));
-
-  //   if (await Permission.locationWhenInUse.request().isGranted) {
-  //     setState(() {
-  //       isLocationGranted = true;
-  //       locationData = _locationData;
-  //       timeZone = timeZoneName;
-  //       zoneOffset = timeZoneOffset;
-  //       locationObject = _locationObject;
-  //     });
-  //   }
-  // }
-  // returns an object with the following keys - latitude, longitude, and timezone
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        //title: const Text("Dojah Widget"),
-        //backgroundColor: ,
-      ),
+      appBar: AppBar(),
       body: isGranted
           ? InAppWebView(
+              key: webViewKey,
+              initialSettings: options,
               initialData: InAppWebViewInitialData(
-                baseUrl: Uri.parse("https://widget.dojah.io"),
-                androidHistoryUrl: Uri.parse("https://widget.dojah.io"),
+                baseUrl: WebUri("https://widget.dojah.io"),
+                historyUrl: WebUri("https://widget.dojah.io"),
                 mimeType: "text/html",
                 data: """
                       <html lang="en">
@@ -168,28 +183,33 @@ class _WebviewScreenState extends State<WebviewScreen> {
                         </head>
                         <body>
                   
-                        <script src="https://widget.dojah.io/widget.js"></script>
+   
+                       <script src="https://widget.dojah.io/widget.js"></script>
+
+                      
                         <script>
                                   const options = {
                                       app_id: "${widget.appId}",
                                       p_key: "${widget.publicKey}",
                                       type: "${widget.type}",
+                                      reference_id: "${widget.referenceId}",
                                       config: ${json.encode(widget.config ?? {})},
                                       user_data: ${json.encode(widget.userData ?? {})},
+                                      gov_data: ${json.encode(widget.govData ?? {})},
+                                      gov_id: ${json.encode(widget.govId ?? {})},
+                                      location: ${json.encode(locationObject ?? {})},
                                       metadata: ${json.encode(widget.metaData ?? {})},
-                                      __location: ${json.encode(locationObject ?? {})},
-                                      amount: ${widget.amount},
-                                      reference_id: ${widget.referenceId},
                                       onSuccess: function (response) {
                                       window.flutter_inappwebview.callHandler('onSuccessCallback', response)
                                       },
-                                      onError: function (err) {
+                                      onError: function (error) {
                                         window.flutter_inappwebview.callHandler('onErrorCallback', error)
                                       },
                                       onClose: function () {
                                         window.flutter_inappwebview.callHandler('onCloseCallback', 'close')
                                       }
                                   }
+
                                     const connect = new Connect(options);
                                     connect.setup();
                                     connect.open();
@@ -198,35 +218,58 @@ class _WebviewScreenState extends State<WebviewScreen> {
                       </html>
                   """,
               ),
-              initialUrlRequest:
-                  URLRequest(url: Uri.parse("https://widget.dojah.io")),
-              initialOptions: options,
+              initialUrlRequest: URLRequest(
+                url: WebUri("https://widget.dojah.io"),
+              ),
+              pullToRefreshController: pullToRefreshController,
               onWebViewCreated: (controller) {
                 _webViewController = controller;
 
-                _webViewController?.addJavaScriptHandler(
+                _webViewController.addJavaScriptHandler(
                   handlerName: 'onSuccessCallback',
                   callback: (response) {
                     widget.success(response);
                   },
                 );
 
-                _webViewController?.addJavaScriptHandler(
+                _webViewController.addJavaScriptHandler(
                   handlerName: 'onCloseCallback',
                   callback: (response) {
                     widget.close(response);
-                    if (response.first == 'close') {
-                      Navigator.pop(context);
-                    }
+                    // if (response.first == 'close') {
+                    //   Navigator.pop(context);
+                    // }
                   },
                 );
 
-                _webViewController?.addJavaScriptHandler(
+                _webViewController.addJavaScriptHandler(
                   handlerName: 'onErrorCallback',
                   callback: (error) {
                     widget.error(error);
                   },
                 );
+              },
+              onPermissionRequest: Platform.isAndroid
+                  ? null
+                  : (controller, origin) async {
+                      return PermissionResponse(
+                        resources: [],
+                        action: PermissionResponseAction.GRANT,
+                      );
+                    },
+              onLoadStop: (controller, url) {
+                pullToRefreshController.endRefreshing();
+              },
+              onReceivedError: (controller, url, code) {
+                pullToRefreshController.endRefreshing();
+              },
+              onProgressChanged: (controller, progress) {
+                if (progress == 100) {
+                  pullToRefreshController.endRefreshing();
+                }
+                setState(() {
+                  this.progress = progress / 100;
+                });
               },
               androidOnPermissionRequest:
                   (controller, origin, resources) async {
@@ -234,10 +277,14 @@ class _WebviewScreenState extends State<WebviewScreen> {
                     resources: resources,
                     action: PermissionRequestResponseAction.GRANT);
               },
+              androidOnGeolocationPermissionsShowPrompt:
+                  (controller, origin) async {
+                return GeolocationPermissionShowPromptResponse(
+                    allow: true, origin: origin, retain: true);
+              },
+              onConsoleMessage: (controller, consoleMessage) {},
             )
           : const Center(child: CircularProgressIndicator()),
     );
   }
 }
-
-

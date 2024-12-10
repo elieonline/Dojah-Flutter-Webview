@@ -11,6 +11,8 @@ class DojahKYC {
   final String? referenceId;
   final Map<String, dynamic>? userData;
   final Map<String, dynamic>? metaData;
+  final Map<String, dynamic>? govData;
+  final Map<String, dynamic>? govId;
   final Map<String, dynamic>? config;
   final Function(dynamic)? onCloseCallback;
 
@@ -23,6 +25,8 @@ class DojahKYC {
     this.userData,
     this.config,
     this.metaData,
+    this.govData,
+    this.govId,
     this.amount,
     this.referenceId,
     this.onCloseCallback,
@@ -41,6 +45,8 @@ class DojahKYC {
           type: type,
           userData: userData,
           metaData: metaData,
+          govData: govData,
+          govId: govId,
           config: config,
           amount: amount,
           referenceId: referenceId,

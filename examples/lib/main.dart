@@ -47,8 +47,8 @@ class _HomePageState extends State<HomePage> {
 // final appId= envVars['appId']; //your application ID
 // final publicKey = envVars['publicKey']; //your public key
 
-  final appId = "6000604fb87ea60035ef41bb"; //your application ID
-  final publicKey = "prod_pk_7jspvKP2FMkjkSZx1qnbgiMWy"; //your public key
+  final appId = ""; //your application ID
+  final publicKey = ""; //your public key
 
 
   @override
@@ -67,17 +67,17 @@ class _HomePageState extends State<HomePage> {
                 style: TextStyle(fontSize: 20.0),
               ),
               onPressed: () {
-                // final userData = {
-                //   "first_name": "Michael",
-                //   "last_name": "Folayan",
-                //   "dob": "1998-05-16",
-                //   "residence_country": "Nigeria"
-                // };
+                final userData = {
+                  "first_name": "John",
+                  "last_name": "Doe",
+                  "dob": "1901-01-01",
+                  "email": "johndoe@gmail.com"
+                 
+                };
 
                 final configObj = {
 
-
-                  "widget_id": "64fefb41419cbc00400249ce"
+                  "widget_id": "658309e2a89938003f717f09"
 
                 };
 
@@ -85,7 +85,7 @@ class _HomePageState extends State<HomePage> {
 
 
                 final metaData = {
-                  "user_id": "81828289191919193882",
+                  "name": "ade",
                 };
 
                 // final govData = {
@@ -104,7 +104,7 @@ class _HomePageState extends State<HomePage> {
                   appId: appId,
                   publicKey: publicKey,
                   type: "custom",
-                  //userData: userData,
+                  userData: userData,
                   metaData: metaData,
                   config: configObj,
                   // govData: govData,
@@ -112,9 +112,9 @@ class _HomePageState extends State<HomePage> {
                 );
 
                 print(json.encode(configObj));
-                print(json.encode(configObj));
+            
                 //print(userData);
-                print(configObj);
+            
                 _dojahKYC.open(context,
                     onSuccess: (result) => print(result),
                     onClose: (close) => print('Widget Closed'),
