@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -101,6 +103,9 @@ class WebviewScreen extends StatefulWidget {
 }
 
 class _WebviewScreenState extends State<WebviewScreen> {
+  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers = {
+    Factory(() => EagerGestureRecognizer())
+  };
   final GlobalKey webViewKey = GlobalKey();
   late InAppWebViewController _webViewController;
   double progress = 0;
@@ -168,6 +173,7 @@ class _WebviewScreenState extends State<WebviewScreen> {
       body: isGranted
           ? InAppWebView(
               key: webViewKey,
+              gestureRecognizers: gestureRecognizers,
               initialSettings: options,
               initialData: InAppWebViewInitialData(
                 baseUrl: WebUri("https://widget.dojah.io"),
