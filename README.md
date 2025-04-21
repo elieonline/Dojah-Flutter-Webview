@@ -1,4 +1,5 @@
 
+## This Repo is now deprecated Visit [here](https://github.com/dojah-inc/Dojah-flutter-sdk) instead
 ## Features [KYC AND FINANCIAL WIDGET]
 
 ![KYC WIDGET](img/kyc.png)
