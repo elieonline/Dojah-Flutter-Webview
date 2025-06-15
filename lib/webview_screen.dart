@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -257,12 +259,14 @@ class _WebviewScreenState extends State<WebviewScreen> {
               },
             );
           },
-          onPermissionRequest: (controller, origin) async {
-            return PermissionResponse(
-              resources: [],
-              action: PermissionResponseAction.GRANT,
-            );
-          },
+          onPermissionRequest: Platform.isAndroid
+              ? null
+              : (controller, origin) async {
+                  return PermissionResponse(
+                    resources: [],
+                    action: PermissionResponseAction.GRANT,
+                  );
+                },
           onLoadStop: (controller, url) {
             pullToRefreshController.endRefreshing();
           },
@@ -276,6 +280,9 @@ class _WebviewScreenState extends State<WebviewScreen> {
             setState(() {
               this.progress = progress / 100;
             });
+          },
+          androidOnPermissionRequest: (controller, origin, resources) async {
+            return PermissionRequestResponse(resources: resources, action: PermissionRequestResponseAction.GRANT);
           },
           onGeolocationPermissionsShowPrompt: (controller, origin) async {
             return GeolocationPermissionShowPromptResponse(
