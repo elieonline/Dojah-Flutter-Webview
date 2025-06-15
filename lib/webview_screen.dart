@@ -35,9 +35,7 @@ class DojahKYC {
   });
 
   Future<void> open(BuildContext context,
-      {Function(dynamic result)? onSuccess,
-      Function(dynamic close)? onClose,
-      Function(dynamic error)? onError}) async {
+      {Function(dynamic result)? onSuccess, Function(dynamic close)? onClose, Function(dynamic error)? onError}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -78,6 +76,7 @@ class WebviewScreen extends StatefulWidget {
   final Map<String, dynamic>? govData;
   final Map<String, dynamic>? govId;
   final Map<String, dynamic>? config;
+  final Widget Function(Widget child)? builder;
   final Function(dynamic) success;
   final Function(dynamic) error;
   final Function(dynamic) close;
@@ -93,6 +92,7 @@ class WebviewScreen extends StatefulWidget {
     this.config,
     this.amount,
     this.referenceId,
+    this.builder,
     required this.success,
     required this.error,
     required this.close,
@@ -103,9 +103,7 @@ class WebviewScreen extends StatefulWidget {
 }
 
 class _WebviewScreenState extends State<WebviewScreen> {
-  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers = {
-    Factory(() => EagerGestureRecognizer())
-  };
+  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers = {Factory(() => EagerGestureRecognizer())};
   final GlobalKey webViewKey = GlobalKey();
   late InAppWebViewController _webViewController;
   double progress = 0;
@@ -113,6 +111,7 @@ class _WebviewScreenState extends State<WebviewScreen> {
   late PullToRefreshController pullToRefreshController;
 
   InAppWebViewSettings options = InAppWebViewSettings(
+    underPageBackgroundColor: Colors.white,
     allowsInlineMediaPlayback: true,
     cacheEnabled: false, // Disable cache
     clearCache: true, // Clear cache
@@ -168,18 +167,21 @@ class _WebviewScreenState extends State<WebviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(),
-      body: isGranted
-          ? InAppWebView(
-              key: webViewKey,
-              gestureRecognizers: gestureRecognizers,
-              initialSettings: options,
-              initialData: InAppWebViewInitialData(
-                baseUrl: WebUri("https://widget.dojah.io"),
-                historyUrl: WebUri("https://widget.dojah.io"),
-                mimeType: "text/html",
-                data: """
+    Widget child = Builder(
+      builder: (_) {
+        if (!isGranted) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        return InAppWebView(
+          key: webViewKey,
+          gestureRecognizers: gestureRecognizers,
+          initialSettings: options,
+          initialData: InAppWebViewInitialData(
+            baseUrl: WebUri("https://widget.dojah.io"),
+            historyUrl: WebUri("https://widget.dojah.io"),
+            mimeType: "text/html",
+            data: """
                       <html lang="en">
                         <head>
                             <meta charset="UTF-8">
@@ -223,74 +225,77 @@ class _WebviewScreenState extends State<WebviewScreen> {
                         </body>
                       </html>
                   """,
-              ),
-              initialUrlRequest: URLRequest(
-                url: WebUri("https://widget.dojah.io"),
-              ),
-              pullToRefreshController: pullToRefreshController,
-              onWebViewCreated: (controller) {
-                _webViewController = controller;
+          ),
+          initialUrlRequest: URLRequest(
+            url: WebUri("https://widget.dojah.io"),
+          ),
+          pullToRefreshController: pullToRefreshController,
+          onWebViewCreated: (controller) {
+            _webViewController = controller;
 
-                _webViewController.addJavaScriptHandler(
-                  handlerName: 'onSuccessCallback',
-                  callback: (response) {
-                    widget.success(response);
-                  },
-                );
+            _webViewController.addJavaScriptHandler(
+              handlerName: 'onSuccessCallback',
+              callback: (response) {
+                widget.success(response);
+              },
+            );
 
-                _webViewController.addJavaScriptHandler(
-                  handlerName: 'onCloseCallback',
-                  callback: (response) {
-                    widget.close(response);
-                    // if (response.first == 'close') {
-                    //   Navigator.pop(context);
-                    // }
-                  },
-                );
+            _webViewController.addJavaScriptHandler(
+              handlerName: 'onCloseCallback',
+              callback: (response) {
+                widget.close(response);
+                // if (response.first == 'close') {
+                //   Navigator.pop(context);
+                // }
+              },
+            );
 
-                _webViewController.addJavaScriptHandler(
-                  handlerName: 'onErrorCallback',
-                  callback: (error) {
-                    widget.error(error);
-                  },
-                );
+            _webViewController.addJavaScriptHandler(
+              handlerName: 'onErrorCallback',
+              callback: (error) {
+                widget.error(error);
               },
-              onPermissionRequest: Platform.isAndroid
-                  ? null
-                  : (controller, origin) async {
-                      return PermissionResponse(
-                        resources: [],
-                        action: PermissionResponseAction.GRANT,
-                      );
-                    },
-              onLoadStop: (controller, url) {
-                pullToRefreshController.endRefreshing();
-              },
-              onReceivedError: (controller, url, code) {
-                pullToRefreshController.endRefreshing();
-              },
-              onProgressChanged: (controller, progress) {
-                if (progress == 100) {
-                  pullToRefreshController.endRefreshing();
-                }
-                setState(() {
-                  this.progress = progress / 100;
-                });
-              },
-              androidOnPermissionRequest:
-                  (controller, origin, resources) async {
-                return PermissionRequestResponse(
-                    resources: resources,
-                    action: PermissionRequestResponseAction.GRANT);
-              },
-              androidOnGeolocationPermissionsShowPrompt:
-                  (controller, origin) async {
-                return GeolocationPermissionShowPromptResponse(
-                    allow: true, origin: origin, retain: true);
-              },
-              onConsoleMessage: (controller, consoleMessage) {},
-            )
-          : const Center(child: CircularProgressIndicator()),
+            );
+          },
+          onPermissionRequest: (controller, origin) async {
+            return PermissionResponse(
+              resources: [],
+              action: PermissionResponseAction.GRANT,
+            );
+          },
+          onLoadStop: (controller, url) {
+            pullToRefreshController.endRefreshing();
+          },
+          onReceivedError: (controller, url, code) {
+            pullToRefreshController.endRefreshing();
+          },
+          onProgressChanged: (controller, progress) {
+            if (progress == 100) {
+              pullToRefreshController.endRefreshing();
+            }
+            setState(() {
+              this.progress = progress / 100;
+            });
+          },
+          onGeolocationPermissionsShowPrompt: (controller, origin) async {
+            return GeolocationPermissionShowPromptResponse(
+              allow: true,
+              origin: origin,
+              retain: true,
+            );
+          },
+          onConsoleMessage: (controller, consoleMessage) {},
+        );
+      },
+    );
+
+    if (widget.builder != null) {
+      return widget.builder!(child);
+    }
+
+    return Scaffold(
+      appBar: AppBar(),
+      body: child,
     );
   }
 }

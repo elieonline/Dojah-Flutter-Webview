@@ -7,7 +7,6 @@ void main() async {
   runApp(const MyApp());
 
 // await location.requestService();
-
 }
 
 class MyApp extends StatelessWidget {
@@ -50,7 +49,6 @@ class _HomePageState extends State<HomePage> {
   final appId = ""; //your application ID
   final publicKey = ""; //your public key
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,67 +58,64 @@ class _HomePageState extends State<HomePage> {
         ),
         body: Center(
             child: Column(children: <Widget>[
-          Container(
-            child: TextButton(
-              child: const Text(
-                'Custom Widget',
-                style: TextStyle(fontSize: 20.0),
-              ),
-              onPressed: () {
-                final userData = {
-                  "first_name": "John",
-                  "last_name": "Doe",
-                  "dob": "1901-01-01",
-                  "email": "johndoe@gmail.com"
-                 
-                };
-
-                final configObj = {
-
-                  "widget_id": "658309e2a89938003f717f09"
-
-                };
-
-
-
-
-                final metaData = {
-                  "name": "ade",
-                };
-
-                // final govData = {
-                //   "bvn": "456789654323",
-                //   "nin": "2345675411111",
-                //   "dl": "3243546768767453423",
-                //   "mobile": "0811234567"
-                // };
-
-              
-
-                DojahKYC? _dojahKYC;
-
-                ///Use your appId and publicKey
-                _dojahKYC = DojahKYC(
-                  appId: appId,
-                  publicKey: publicKey,
-                  type: "custom",
-                  userData: userData,
-                  metaData: metaData,
-                  config: configObj,
-                  // govData: govData,
-                  // referenceId: referenceId
-                );
-
-                print(json.encode(configObj));
-            
-                //print(userData);
-            
-                _dojahKYC.open(context,
-                    onSuccess: (result) => print(result),
-                    onClose: (close) => print('Widget Closed'),
-                    onError: (error) => print(error));
-              },
+          TextButton(
+            child: const Text(
+              'Custom Widget',
+              style: TextStyle(fontSize: 20.0),
             ),
+            onPressed: () {
+              final userData = {
+                "first_name": "John",
+                "last_name": "Doe",
+                "dob": "1901-01-01",
+                "email": "johndoe@gmail.com"
+              };
+
+              final configObj = {"widget_id": "658309e2a89938003f717f09"};
+
+              final metaData = {
+                "name": "ade",
+              };
+
+              // final govData = {
+              //   "bvn": "456789654323",
+              //   "nin": "2345675411111",
+              //   "dl": "3243546768767453423",
+              //   "mobile": "0811234567"
+              // };
+
+              DojahKYC? _dojahKYC;
+
+              ///Use your appId and publicKey
+              _dojahKYC = DojahKYC(
+                appId: appId,
+                publicKey: publicKey,
+                type: "custom",
+                userData: userData,
+                metaData: metaData,
+                config: configObj,
+                builder: (child) {
+                  return Scaffold(
+                    appBar: AppBar(
+                      title: const Text("Custom Widget"),
+                      centerTitle: true,
+                    ),
+                    body: child,
+                  );
+                },
+                // govData: govData,
+                // referenceId: referenceId
+              );
+
+              debugPrint(json.encode(configObj));
+
+              //debugPrint(userData);
+
+              _dojahKYC.open(context,
+                  onSuccess: (result) => debugPrint("$result"),
+                  onClose: (close) => debugPrint('Widget Closed'),
+                  onError: (error) => debugPrint("$error"));
+            },
           ),
         ])));
   }

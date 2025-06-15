@@ -14,9 +14,8 @@ class DojahKYC {
   final Map<String, dynamic>? govData;
   final Map<String, dynamic>? govId;
   final Map<String, dynamic>? config;
+  final Widget Function(Widget child)? builder;
   final Function(dynamic)? onCloseCallback;
-
-  
 
   DojahKYC({
     required this.appId,
@@ -29,13 +28,12 @@ class DojahKYC {
     this.govId,
     this.amount,
     this.referenceId,
+    this.builder,
     this.onCloseCallback,
   });
 
   Future<void> open(BuildContext context,
-      {Function(dynamic result)? onSuccess,
-      Function(dynamic close)? onClose,
-      Function(dynamic error)? onError}) async {
+      {Function(dynamic result)? onSuccess, Function(dynamic close)? onClose, Function(dynamic error)? onError}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -50,12 +48,12 @@ class DojahKYC {
           config: config,
           amount: amount,
           referenceId: referenceId,
+          builder: builder,
           success: (result) {
             onSuccess!(result);
           },
-
           close: (close) {
-              onClose!(close);
+            onClose!(close);
           },
           error: (error) {
             onError!(error);
