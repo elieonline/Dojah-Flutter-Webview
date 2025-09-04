@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
@@ -37,7 +38,9 @@ class DojahKYC {
   });
 
   Future<void> open(BuildContext context,
-      {Function(dynamic result)? onSuccess, Function(dynamic close)? onClose, Function(dynamic error)? onError}) async {
+      {Function(dynamic result)? onSuccess,
+      Function(dynamic close)? onClose,
+      Function(dynamic error)? onError}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -105,7 +108,9 @@ class WebviewScreen extends StatefulWidget {
 }
 
 class _WebviewScreenState extends State<WebviewScreen> {
-  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers = {Factory(() => EagerGestureRecognizer())};
+  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers = {
+    Factory(() => EagerGestureRecognizer())
+  };
   final GlobalKey webViewKey = GlobalKey();
   late InAppWebViewController _webViewController;
   double progress = 0;
@@ -179,6 +184,18 @@ class _WebviewScreenState extends State<WebviewScreen> {
           key: webViewKey,
           gestureRecognizers: gestureRecognizers,
           initialSettings: options,
+          initialUserScripts: UnmodifiableListView<UserScript>([
+            UserScript(
+              source: """
+                var iframes = document.getElementsByTagName('iframe');
+                for (var i = 0; i < iframes.length; i++) {
+                  var currentAllow = iframes[i].getAttribute('allow') || '';
+                  iframes[i].setAttribute('allow', currentAllow + '; camera; microphone; accelerometer; gyroscope; magnetometer');
+                }
+              """,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END,
+            ),
+          ]),
           initialData: InAppWebViewInitialData(
             baseUrl: WebUri("https://widget.dojah.io"),
             historyUrl: WebUri("https://widget.dojah.io"),
@@ -282,7 +299,8 @@ class _WebviewScreenState extends State<WebviewScreen> {
             });
           },
           androidOnPermissionRequest: (controller, origin, resources) async {
-            return PermissionRequestResponse(resources: resources, action: PermissionRequestResponseAction.GRANT);
+            return PermissionRequestResponse(
+                resources: resources, action: PermissionRequestResponseAction.GRANT);
           },
           onGeolocationPermissionsShowPrompt: (controller, origin) async {
             return GeolocationPermissionShowPromptResponse(
