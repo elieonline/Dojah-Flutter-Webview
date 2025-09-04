@@ -118,10 +118,19 @@ class _WebviewScreenState extends State<WebviewScreen> {
   late PullToRefreshController pullToRefreshController;
 
   InAppWebViewSettings options = InAppWebViewSettings(
-    underPageBackgroundColor: Colors.white,
     allowsInlineMediaPlayback: true,
     cacheEnabled: false, // Disable cache
     clearCache: true, // Clear cache
+    verticalScrollBarEnabled: true,
+    horizontalScrollBarEnabled: true, // Enable horizontal scrollbar
+    supportZoom: true, // Allow zooming (optional)
+    builtInZoomControls: true, // Enable built-in zoom controls
+    displayZoomControls: false, // Hide display of zoom controls
+    disableHorizontalScroll: false, // Ensure horizontal scrolling is not disabled
+    disableVerticalScroll: false, // Ensure vertical scrolling is not disabled
+    transparentBackground: false, // Default background for visibility
+    javaScriptEnabled: true,
+    mediaPlaybackRequiresUserGesture: false,
   );
 
   bool isGranted = false;
