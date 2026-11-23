@@ -32,8 +32,12 @@ class DojahKYC {
     this.onCloseCallback,
   });
 
-  Future<void> open(BuildContext context,
-      {Function(dynamic result)? onSuccess, Function(dynamic close)? onClose, Function(dynamic error)? onError}) async {
+  Future<void> open(
+    BuildContext context, {
+    Function(dynamic result)? onSuccess,
+    Function(dynamic close)? onClose,
+    Function(dynamic error)? onError,
+  }) async {
     await Navigator.push(
       context,
       MaterialPageRoute(

@@ -131,6 +131,10 @@ class _WebviewScreenState extends State<WebviewScreen> {
     transparentBackground: false, // Default background for visibility
     javaScriptEnabled: true,
     mediaPlaybackRequiresUserGesture: false,
+    useHybridComposition: true,
+    // Applied to iframes created by the Android webview, including identity.dojah.io.
+    iframeAllow: "camera; microphone; geolocation; fullscreen",
+    iframeAllowFullscreen: true,
   );
 
   bool isGranted = false;
@@ -165,20 +169,22 @@ class _WebviewScreenState extends State<WebviewScreen> {
   }
 
   Future initPermissions() async {
-    await Permission.camera.request().then((value) {
-      if (value.isPermanentlyDenied) {
-        openAppSettings();
-      }
-    });
-    if (await Permission.camera.request().isGranted) {
-      setState(() {
-        isGranted = true;
-      });
-    } else {
-      Permission.camera.onDeniedCallback(() {
-        Permission.camera.request();
-      });
+    // The identity iframe calls getUserMedia with camera and microphone.
+    // Camera access alone still fails the capture when the microphone is denied.
+    final statuses = await [
+      Permission.camera,
+      Permission.microphone,
+    ].request();
+
+    final cameraStatus = statuses[Permission.camera];
+    if (cameraStatus != null && cameraStatus.isPermanentlyDenied) {
+      await openAppSettings();
     }
+
+    if (!mounted) return;
+    setState(() {
+      isGranted = cameraStatus?.isGranted ?? false;
+    });
   }
 
   @override
@@ -196,13 +202,42 @@ class _WebviewScreenState extends State<WebviewScreen> {
           initialUserScripts: UnmodifiableListView<UserScript>([
             UserScript(
               source: """
-                var iframes = document.getElementsByTagName('iframe');
-                for (var i = 0; i < iframes.length; i++) {
-                  var currentAllow = iframes[i].getAttribute('allow') || '';
-                  iframes[i].setAttribute('allow', currentAllow + '; camera; microphone; accelerometer; gyroscope; magnetometer');
-                }
+                (function () {
+                  var allow = 'camera; microphone; geolocation; fullscreen';
+                  function patch(iframe) {
+                    if (!iframe || iframe.tagName !== 'IFRAME') return;
+                    var current = iframe.getAttribute('allow') || '';
+                    if (current.indexOf('camera') !== -1) return;
+                    iframe.setAttribute('allow', current ? current + '; ' + allow : allow);
+                  }
+                  function scan(root) {
+                    if (!root || !root.querySelectorAll) return;
+                    var frames = root.querySelectorAll('iframe');
+                    for (var i = 0; i < frames.length; i++) patch(frames[i]);
+                  }
+                  function start() {
+                    scan(document);
+                    var observer = new MutationObserver(function (mutations) {
+                      for (var i = 0; i < mutations.length; i++) {
+                        var nodes = mutations[i].addedNodes;
+                        for (var j = 0; j < nodes.length; j++) {
+                          var node = nodes[j];
+                          if (!node || node.nodeType !== 1) continue;
+                          if (node.tagName === 'IFRAME') patch(node);
+                          else scan(node);
+                        }
+                      }
+                    });
+                    observer.observe(document.documentElement || document, { childList: true, subtree: true });
+                  }
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', start);
+                  } else {
+                    start();
+                  }
+                })();
               """,
-              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
             ),
           ]),
           initialData: InAppWebViewInitialData(
@@ -214,6 +249,7 @@ class _WebviewScreenState extends State<WebviewScreen> {
                         <head>
                             <meta charset="UTF-8">
                                 <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, shrink-to-fit=1"/>
+                                <meta http-equiv="Permissions-Policy" content="camera=*, microphone=*, geolocation=*">
                               
                             <title>Dojah Inc.</title>
                         </head>
@@ -224,6 +260,38 @@ class _WebviewScreenState extends State<WebviewScreen> {
 
                       
                         <script>
+                                  window.__dojahLastMessage = null;
+                                  window.addEventListener('message', function (event) {
+                                    var origin = event.origin || '';
+                                    if (origin !== 'https://identity.dojah.io' && origin !== 'https://widget.dojah.io') {
+                                      return;
+                                    }
+                                    window.__dojahLastMessage = event.data || null;
+                                  }, true);
+
+                                  function dojahErrorPayload(error) {
+                                    var message = window.__dojahLastMessage;
+                                    var payload = error;
+                                    // Current widget.js calls onError(data.response) for every
+                                    // postMessage type. Unknown types arrive with a null response
+                                    // and must not close the webview.
+                                    if (payload == null && message && typeof message === 'object' && message.type && message.type !== 'connect.account.error') {
+                                      return null;
+                                    }
+                                    if (payload == null && message && typeof message === 'object') {
+                                      payload = message.response != null ? message.response : message;
+                                    }
+                                    if (payload == null) return null;
+                                    if (typeof payload === 'object' && payload.type && payload.response == null && !payload.message && !payload.code && !payload.error) {
+                                      return null;
+                                    }
+                                    try {
+                                      return JSON.parse(JSON.stringify(payload));
+                                    } catch (e) {
+                                      return { message: String(payload) };
+                                    }
+                                  }
+
                                   const options = {
                                       app_id: "${widget.appId}",
                                       p_key: "${widget.publicKey}",
@@ -239,7 +307,9 @@ class _WebviewScreenState extends State<WebviewScreen> {
                                       window.flutter_inappwebview.callHandler('onSuccessCallback', response)
                                       },
                                       onError: function (error) {
-                                        window.flutter_inappwebview.callHandler('onErrorCallback', error)
+                                        var payload = dojahErrorPayload(error);
+                                        if (payload == null) return;
+                                        window.flutter_inappwebview.callHandler('onErrorCallback', payload)
                                       },
                                       onClose: function () {
                                         window.flutter_inappwebview.callHandler('onCloseCallback', 'close')
@@ -285,14 +355,12 @@ class _WebviewScreenState extends State<WebviewScreen> {
               },
             );
           },
-          onPermissionRequest: Platform.isAndroid
-              ? null
-              : (controller, origin) async {
-                  return PermissionResponse(
-                    resources: [],
-                    action: PermissionResponseAction.GRANT,
-                  );
-                },
+          onPermissionRequest: (controller, permissionRequest) async {
+            return PermissionResponse(
+              resources: permissionRequest.resources,
+              action: PermissionResponseAction.GRANT,
+            );
+          },
           onLoadStop: (controller, url) {
             pullToRefreshController.endRefreshing();
           },
